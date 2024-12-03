@@ -1,10 +1,10 @@
+# shader_compiler.py
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileShader, compileProgram
 
 def load_shader_code(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
-
 
 def compile_shader(vertex_src, fragment_src):
     try:

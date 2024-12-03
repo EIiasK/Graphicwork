@@ -1,7 +1,8 @@
+# renderer.py
 from OpenGL.GL import *
 import glm
 from shader_compiler import init_shader_program
-from utils import *
+from utils import print_matrix
 
 class Renderer:
     def __init__(self, scene):
@@ -18,17 +19,14 @@ class Renderer:
         projection = glm.perspective(glm.radians(self.scene.camera.fov), 1600 / 900, 0.1, 100.0)
 
         # 打印矩阵以调试
-        # print_matrix(view, "View Matrix:")
-        # print_matrix(projection, "Projection Matrix:")
+        print_matrix(view, "View Matrix:")
+        print_matrix(projection, "Projection Matrix:")
 
         # 将矩阵传递到着色器
-        glUniformMatrix4fv(glGetUniformLocation(self.shader_program, "view"), 1, GL_FALSE, glm.value_ptr(view))
-        glUniformMatrix4fv(glGetUniformLocation(self.shader_program, "projection"), 1, GL_FALSE,
-                           glm.value_ptr(projection))
-
-        # 设置模型矩阵（如果有多个物体，可能需要在这里设置不同的模型矩阵）
-        model = glm.mat4(1.0)  # 例如，单位矩阵
-        glUniformMatrix4fv(glGetUniformLocation(self.shader_program, "model"), 1, GL_FALSE, glm.value_ptr(model))
+        view_loc = glGetUniformLocation(self.shader_program, "view")
+        projection_loc = glGetUniformLocation(self.shader_program, "projection")
+        glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm.value_ptr(view))
+        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, glm.value_ptr(projection))
 
         # 渲染场景中的物体
         self.scene.render()
