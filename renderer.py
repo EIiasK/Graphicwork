@@ -59,5 +59,9 @@ class Renderer:
             # 传递模型矩阵到着色器
             model_loc = glGetUniformLocation(self.shader_program, "model")
             glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm.value_ptr(combined_model))
+
+            # print("Rendering Mesh with Model Matrix:")
+            # print(np.array(combined_model.to_list()).reshape(4, 4))  # 将 glm.mat4 转换为嵌套列表，再转换为 numpy 数组并打印
+
             # 渲染网格
             mesh.render(self.shader_program)

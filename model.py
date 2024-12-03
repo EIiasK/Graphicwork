@@ -20,6 +20,7 @@ class Mesh:
         self.model_matrix = model_matrix  # glm.mat4 对象
         self.vertex_count = len(indices)
         self.directory = directory  # 用于加载默认纹理
+        self.texcoords = texcoords
 
         # 创建并绑定 VAO
         self.vao = glGenVertexArrays(1)
@@ -28,8 +29,12 @@ class Mesh:
         # 创建 VBO
         self.vbo = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        # Interleave vertices, normals, texcoords
+        # 交错顶点数据：位置、法线、纹理坐标
         vertex_data = np.hstack((vertices, normals, texcoords)).astype(np.float32)
+        # print("Sample vertex data:")
+        # print(vertex_data[:8])  # 打印前两个顶点数据
+        # print("Sample Texcoords:")
+        # print(texcoords[:5])  # 打印前5个 UV 坐标
         glBufferData(GL_ARRAY_BUFFER, vertex_data.nbytes, vertex_data, GL_STATIC_DRAW)
 
         # 创建 EBO
@@ -50,6 +55,10 @@ class Mesh:
         # 纹理坐标属性
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(24))
         glEnableVertexAttribArray(2)
+
+        # 解绑 VBO 和 VAO（EBO 保持绑定状态）
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
 
         # 解绑 VBO 和 VAO
         glBindBuffer(GL_ARRAY_BUFFER, 0)
@@ -199,7 +208,7 @@ class Model:
                                            gltf) if primitive.attributes.TEXCOORD_0 is not None else np.zeros(
             (len(positions), 2), dtype=np.float32)
         logging.info(f"  Texcoords count: {len(texcoords)}")
-
+        logging.info(f"Texcoords sample: {texcoords[:5]}")
         # 提取索引
         indices = self.get_accessor_data(primitive.indices, gltf)
         logging.info(f"  Indices count: {len(indices)}")
@@ -217,6 +226,19 @@ class Model:
         if len(texcoords) != num_vertices:
             logging.warning(f"  纹理坐标数量 ({len(texcoords)}) 与顶点数量 ({num_vertices}) 不匹配。使用默认纹理坐标。")
             texcoords = np.zeros((num_vertices, 2), dtype=np.float32)
+
+        # 检查 indices 和 texcoords 长度是否匹配
+        if len(indices) != len(texcoords):
+            expanded_texcoords = np.zeros((len(indices), 2), dtype=np.float32)
+            for i, idx in enumerate(indices):
+                if idx < len(texcoords):
+                    expanded_texcoords[i] = texcoords[idx]
+                else:
+                    logging.warning(f"Index {idx} out of bounds for texcoords, using default [0, 0]")
+                    expanded_texcoords[i] = [0.0, 0.0]  # 默认纹理坐标
+            texcoords = expanded_texcoords
+
+        logging.info(f"Model Matrix: {model_matrix}")
 
         # 提取纹理路径
         texture_path = None
