@@ -1,7 +1,6 @@
 # scene.py
 from model import Model
 
-
 class Scene:
     def __init__(self, camera):
         self.camera = camera
@@ -12,5 +11,6 @@ class Scene:
         # 更新物体状态（如动画等）
         pass
 
-    def render(self):
-        self.model.render()
+    def render(self, shader_program):
+        self.model.render(shader_program)
+

@@ -36,3 +36,4 @@ void main()
     vec4 texColor = texture(texture_diffuse1, TexCoord);
     FragColor = vec4(result, 1.0) * texColor;
 }
+

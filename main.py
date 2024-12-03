@@ -40,6 +40,9 @@ def main():
     # 设置初始时间
     last_frame = glfw.get_time()
 
+    # 启用深度测试
+    glEnable(GL_DEPTH_TEST)
+
     # 主循环
     while not glfw.window_should_close(window):
         # 计算时间间隔

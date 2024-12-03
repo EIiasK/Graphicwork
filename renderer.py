@@ -10,10 +10,6 @@ class Renderer:
         self.scene = scene
         self.shader_program = init_simple_shader_program()
 
-        # 加载模型（这里可以暂时注释加载简单三角形，使用 Model 类）
-        # self.simple_triangle = SimpleTriangle()
-        # self.model = Model("path_to_your_fbx_model.fbx")  # 将路径替换为实际模型路径
-
         # 设置光源参数
         glUseProgram(self.shader_program)
         # 光源位置
@@ -39,7 +35,7 @@ class Renderer:
         view = self.scene.camera.get_view_matrix()
 
         # 设置投影矩阵
-        projection = glm.perspective(glm.radians(self.scene.camera.fov), 1600 / 900, 0.1, 100.0)
+        projection = glm.perspective(glm.radians(self.scene.camera.fov), 800 / 600, 0.1, 100.0)
 
         # 获取 uniform 位置
         model_loc = glGetUniformLocation(self.shader_program, "model")
@@ -56,10 +52,6 @@ class Renderer:
         glUniform3f(view_pos_loc, self.scene.camera.position.x, self.scene.camera.position.y,
                     self.scene.camera.position.z)
 
-        # 绑定纹理（如果使用）
-        # glActiveTexture(GL_TEXTURE0)
-        # glBindTexture(GL_TEXTURE_2D, self.simple_triangle.texture)
-        # glUniform1i(glGetUniformLocation(self.shader_program, "texture_diffuse1"), 0)
+        # 渲染场景中的物体，传递着色器程序
+        self.scene.render(self.shader_program)
 
-        # 渲染场景中的物体
-        self.scene.render()
