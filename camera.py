@@ -10,9 +10,9 @@ class Camera:
         self.right = glm.normalize(glm.cross(self.front, self.world_up))
         self.yaw = yaw
         self.pitch = pitch
-        self.speed = 2.5
+        self.speed = 25
         self.sensitivity = 0.1
-        self.fov = 45.0
+        self.fov = 90
         self.update_camera_vectors()
 
     def get_view_matrix(self):
