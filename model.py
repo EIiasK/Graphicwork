@@ -6,6 +6,7 @@ from PIL import Image
 import os
 import logging
 import ctypes
+import glm  # 确保已安装 PyGLM: pip install PyGLM
 
 # 设置日志配置
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,7 +15,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class Mesh:
     DEFAULT_TEXTURE_FILENAME = 'default_texture.png'
 
-    def __init__(self, vertices, normals, texcoords, indices, texture_path=None, directory=''):
+    def __init__(self, vertices, normals, texcoords, indices, texture_path=None, directory='',
+                 model_matrix=glm.mat4(1.0)):
+        self.model_matrix = model_matrix  # glm.mat4 对象
         self.vertex_count = len(indices)
         self.directory = directory  # 用于加载默认纹理
 
@@ -129,7 +132,7 @@ class Model:
                 with open(buffer_path, 'rb') as f:
                     f.seek(buffer_view.byteOffset)
                     data = f.read(buffer_view.byteLength)
-                # 假设嵌入式纹理为PNG
+                # 处理嵌入式纹理为 PNG 文件
                 texture_filename = f"embedded_texture_{i}.png"
                 texture_path = os.path.join(self.directory, 'textures', texture_filename)
                 with open(texture_path, 'wb') as tex_file:
@@ -142,21 +145,43 @@ class Model:
             for node in scene.nodes:
                 self.process_node(node, gltf, textures)
 
-    def process_node(self, node_index, gltf, textures):
+    def process_node(self, node_index, gltf, textures, parent_transform=glm.mat4(1.0)):
         if node_index in self.processed_nodes:
             return  # 已处理过此节点，跳过
         self.processed_nodes.add(node_index)
 
         node = gltf.nodes[node_index]
+
+        # 计算节点的本地变换
+        if node.matrix:
+            # 如果节点有 matrix，直接使用
+            # node.matrix 是一个扁平的列表，顺序为列主序
+            local_transform = glm.mat4(*node.matrix)
+        else:
+            # 否则，从 TRS 计算
+            translation = node.translation if node.translation else [0.0, 0.0, 0.0]
+            rotation = node.rotation if node.rotation else [0.0, 0.0, 0.0, 1.0]  # x, y, z, w
+            scale = node.scale if node.scale else [1.0, 1.0, 1.0]
+
+            # 使用 glm 计算 TRS 矩阵
+            trs = glm.translate(glm.mat4(1.0), glm.vec3(*translation))
+            q = glm.quat(rotation[3], rotation[0], rotation[1], rotation[2])  # glm.quat(w, x, y, z)
+            rot = glm.mat4_cast(q)
+            scl = glm.scale(glm.mat4(1.0), glm.vec3(*scale))
+            local_transform = trs * rot * scl
+
+        # 组合父节点的变换
+        global_transform = parent_transform * local_transform
+
         if node.mesh is not None:
             mesh = gltf.meshes[node.mesh]
             for primitive in mesh.primitives:
-                self.process_primitive(primitive, gltf, textures)
+                self.process_primitive(primitive, gltf, textures, global_transform)
         if node.children:
             for child in node.children:
-                self.process_node(child, gltf, textures)
+                self.process_node(child, gltf, textures, global_transform)
 
-    def process_primitive(self, primitive, gltf, textures):
+    def process_primitive(self, primitive, gltf, textures, model_matrix):
         # 提取顶点位置
         positions = self.get_accessor_data(primitive.attributes.POSITION, gltf)
         logging.info(f"  Positions count: {len(positions)}")
@@ -207,8 +232,8 @@ class Model:
             logging.info("  Primitive 无材质。使用默认纹理。")
             texture_path = os.path.join(self.directory, 'textures', Mesh.DEFAULT_TEXTURE_FILENAME)
 
-        # 创建 Mesh 实例
-        self.meshes.append(Mesh(positions, normals, texcoords, indices, texture_path, self.directory))
+        # 创建 Mesh 实例，并传递模型矩阵
+        self.meshes.append(Mesh(positions, normals, texcoords, indices, texture_path, self.directory, model_matrix))
 
     def get_accessor_data(self, accessor_index, gltf):
         accessor = gltf.accessors[accessor_index]
