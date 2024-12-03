@@ -5,6 +5,7 @@ from camera import Camera
 from scene import Scene
 from controls import Controls
 from renderer import Renderer
+import time  # 导入 time 模块以获取时间
 
 def main():
     # 初始化 GLFW 窗口
@@ -12,7 +13,7 @@ def main():
         raise Exception("GLFW 初始化失败")
 
     # 创建窗口
-    window = glfw.create_window(800, 600, "Simple Triangle", None, None)
+    window = glfw.create_window(1600, 900, "Simple Triangle", None, None)
     if not window:
         glfw.terminate()
         raise Exception("窗口创建失败")
@@ -24,19 +25,35 @@ def main():
     print(f"GLSL Version: {glGetString(GL_SHADING_LANGUAGE_VERSION).decode()}")
     print(f"Renderer: {glGetString(GL_RENDERER).decode()}")
 
-    # 初始化渲染器、相机、场景和控制
+    # 初始化相机
     camera = Camera()
+
+    # 初始化场景
     scene = Scene(camera)
+
+    # 初始化渲染器
     renderer = Renderer(scene)
+
+    # 初始化控制
     controls = Controls(window, camera)
+
+    # 设置初始时间
+    last_frame = glfw.get_time()
 
     # 主循环
     while not glfw.window_should_close(window):
-        # 处理用户输入（此处可以简化或注释掉 controls.handle_input()）
-        # controls.handle_input()
+        # 计算时间间隔
+        current_frame = glfw.get_time()
+        delta_time = current_frame - last_frame
+        last_frame = current_frame
 
-        # 更新场景和渲染
+        # 处理输入
+        controls.handle_input(delta_time)
+
+        # 更新场景
         scene.update()
+
+        # 渲染
         renderer.render()
 
         # 检查并打印 OpenGL 错误

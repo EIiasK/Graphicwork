@@ -1,24 +1,41 @@
 # renderer.py
 from OpenGL.GL import *
-from shader_compiler import init_simple_shader_program
 import glm
+from shader_compiler import init_simple_shader_program
 
 class Renderer:
     def __init__(self, scene):
-        self.scene = scene  # 保存传递进来的场景对象
-        self.shader_program = init_simple_shader_program()  # 初始化简单的 shader program
+        self.scene = scene
+        self.shader_program = init_simple_shader_program()
 
     def render(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glClearColor(0.0, 0.0, 0.0, 1.0)  # 设置背景为黑色
+        glClearColor(0.1, 0.1, 0.1, 1.0)
 
-        glUseProgram(self.shader_program)  # 使用简单的 shader program
+        glUseProgram(self.shader_program)
+        glEnable(GL_DEPTH_TEST)
 
-        # 禁用深度测试和背面剔除（因为只有一个简单的三角形）
-        glDisable(GL_DEPTH_TEST)
-        glDisable(GL_CULL_FACE)
+        # 设置模型矩阵
+        model = glm.mat4(1.0)  # 单位矩阵
 
-        # 不需要设置矩阵，因为简单的着色器直接使用顶点位置
+        # 使用相机的视图矩阵
+        view = self.scene.camera.get_view_matrix()
 
-        # 渲染场景中的物体（简单的三角形）
+        # 设置投影矩阵
+        projection = glm.perspective(glm.radians(self.scene.camera.fov), 1600 / 900, 0.1, 100.0)
+
+        # 获取 uniform 位置
+        model_loc = glGetUniformLocation(self.shader_program, "model")
+        view_loc = glGetUniformLocation(self.shader_program, "view")
+        proj_loc = glGetUniformLocation(self.shader_program, "projection")
+
+        # 传递矩阵到着色器
+        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm.value_ptr(model))
+        glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm.value_ptr(view))
+        glUniformMatrix4fv(proj_loc, 1, GL_FALSE, glm.value_ptr(projection))
+
+        # 打印相机位置（调试）
+        print(f"Camera Position: {self.scene.camera.position}")
+
+        # 渲染场景中的物体
         self.scene.render()
