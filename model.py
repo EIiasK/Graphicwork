@@ -1,11 +1,11 @@
 # model.py
-import pyassimp
+from pygltflib import GLTF2
 from OpenGL.GL import *
 import numpy as np
-import ctypes
 from PIL import Image
 import os
 import logging
+import ctypes
 
 # 设置日志配置
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -14,8 +14,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class Mesh:
     DEFAULT_TEXTURE_FILENAME = 'default_texture.png'
 
-    def __init__(self, vertices, normals, texcoords, indices, texture_path=None):
+    def __init__(self, vertices, normals, texcoords, indices, texture_path=None, directory=''):
         self.vertex_count = len(indices)
+        self.directory = directory  # 用于加载默认纹理
 
         # 创建并绑定 VAO
         self.vao = glGenVertexArrays(1)
@@ -52,29 +53,19 @@ class Mesh:
         glBindVertexArray(0)
 
         # 加载纹理
-        if texture_path:
-            # 如果指定的纹理文件不存在，使用默认纹理
-            if not os.path.isfile(texture_path):
-                logging.warning(f"纹理文件不存在: {texture_path}. 使用默认纹理。")
-                texture_path = os.path.abspath(
-                    os.path.join(os.path.dirname(texture_path), self.DEFAULT_TEXTURE_FILENAME))
-
+        if texture_path and os.path.isfile(texture_path):
             self.texture = self.load_texture(texture_path)
         else:
-            # 使用默认纹理
-            texture_path = os.path.abspath(
-                os.path.join(self.directory, '..', 'textures', self.DEFAULT_TEXTURE_FILENAME))
-            logging.info(f"未指定纹理。使用默认纹理: {texture_path}")
-            self.texture = self.load_texture(texture_path)
+            default_texture_path = os.path.join(self.directory, 'textures', self.DEFAULT_TEXTURE_FILENAME)
+            logging.info(f"未指定纹理或纹理文件不存在。使用默认纹理: {default_texture_path}")
+            self.texture = self.load_texture(default_texture_path)
 
     def load_texture(self, path):
         try:
-            if not os.path.isfile(path):
-                logging.error(f"纹理文件不存在: {path}")
-                return None
             image = Image.open(path)
             image = image.transpose(Image.FLIP_TOP_BOTTOM)
             img_data = image.convert("RGBA").tobytes()
+            width, height = image.size
         except Exception as e:
             logging.error(f"无法加载纹理图片 {path}: {e}")
             return None
@@ -82,7 +73,7 @@ class Mesh:
         texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, texture)
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img_data)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, img_data)
         glGenerateMipmap(GL_TEXTURE_2D)
 
         # 设置纹理参数
@@ -112,113 +103,190 @@ class Mesh:
 class Model:
     def __init__(self, file_path):
         self.meshes = []
-        self.directory = os.path.dirname(file_path)  # 获取模型文件的目录
+        self.directory = os.path.dirname(file_path)
+        self.processed_nodes = set()  # 用于跟踪已处理的节点，防止重复处理
         self.load_model(file_path)
 
     def load_model(self, file_path):
-        with pyassimp.load(file_path) as scene:
-            if not scene:
-                raise Exception(f"无法加载模型文件: {file_path}")
+        gltf = GLTF2().load(file_path)
 
-            # 打印场景中的纹理数量
-            logging.info(f"Scene has {len(scene.textures)} embedded textures.")
-
-            # 提取嵌入式纹理并保存为文件
-            for i, texture in enumerate(scene.textures):
-                # 将 numpy.ndarray 转换为字节串
-                texture_bytes = texture.data.tobytes()
-
-                # 判断纹理格式
-                if texture_bytes.startswith(b'\211PNG\r\n\032\n'):
-                    ext = 'png'
-                elif texture_bytes.startswith(b'\xff\xd8'):
-                    ext = 'jpg'
-                else:
-                    ext = 'bin'  # 未知格式
-
-                texture_filename = f"embedded_texture_{i}.{ext}"
-                texture_path = os.path.abspath(os.path.join(self.directory, '..', 'textures', texture_filename))
-                with open(texture_path, 'wb') as f:
-                    f.write(texture_bytes)
+        # 提取纹理路径
+        textures = {}
+        for i, texture in enumerate(gltf.textures):
+            image = gltf.images[texture.source]
+            if image.uri:
+                texture_path = os.path.join(self.directory, image.uri.replace('\\', os.sep).replace('/', os.sep))
+                textures[i] = texture_path
+                logging.info(f"  Extracted texture {i}: {texture_path}")
+            else:
+                # 处理嵌入式纹理（如果使用 .glb）
+                buffer_view = gltf.bufferViews[image.bufferView]
+                buffer = gltf.buffers[buffer_view.buffer]
+                buffer_path = os.path.join(self.directory, buffer.uri.replace('\\', os.sep).replace('/', os.sep))
+                if not os.path.isfile(buffer_path):
+                    logging.error(f"  嵌入式纹理的缓冲区文件不存在: {buffer_path}")
+                    continue
+                with open(buffer_path, 'rb') as f:
+                    f.seek(buffer_view.byteOffset)
+                    data = f.read(buffer_view.byteLength)
+                # 假设嵌入式纹理为PNG
+                texture_filename = f"embedded_texture_{i}.png"
+                texture_path = os.path.join(self.directory, 'textures', texture_filename)
+                with open(texture_path, 'wb') as tex_file:
+                    tex_file.write(data)
+                textures[i] = texture_path
                 logging.info(f"  Extracted embedded texture {i}: {texture_path}")
 
-            for i, mesh in enumerate(scene.meshes):
-                vertices = mesh.vertices
-                normals = mesh.normals if mesh.normals is not None else np.zeros_like(vertices)
+        # 遍历场景中的所有节点
+        for scene in gltf.scenes:
+            for node in scene.nodes:
+                self.process_node(node, gltf, textures)
 
-                # 调试输出：打印材质属性
-                logging.info(f"\nProcessing mesh {i + 1} with {len(vertices)} vertices.")
-                if mesh.material:
-                    logging.info("Mesh has material. Properties:")
-                    properties = mesh.material.properties
-                    if len(properties) % 2 != 0:
-                        logging.warning("  警告: 材质属性列表的长度不是偶数，可能存在不匹配的键值对。")
+    def process_node(self, node_index, gltf, textures):
+        if node_index in self.processed_nodes:
+            return  # 已处理过此节点，跳过
+        self.processed_nodes.add(node_index)
 
-                    # 构建属性字典
-                    prop_dict = {}
-                    for j in range(0, len(properties) - 1, 2):
-                        key = properties[j].lower()
-                        value = properties[j + 1]
-                        prop_dict[key] = value
-                        logging.info(f"  Property: {properties[j]}, Value: {properties[j + 1]}")
+        node = gltf.nodes[node_index]
+        if node.mesh is not None:
+            mesh = gltf.meshes[node.mesh]
+            for primitive in mesh.primitives:
+                self.process_primitive(primitive, gltf, textures)
+        if node.children:
+            for child in node.children:
+                self.process_node(child, gltf, textures)
 
-                    # 处理最后一个属性（如果长度为奇数）
-                    if len(properties) % 2 != 0:
-                        key = properties[-1].lower()
-                        value = None
-                        prop_dict[key] = value
-                        logging.info(f"  Property: {properties[-1]}, Value: {value}")
-                else:
-                    logging.info("Mesh has no material.")
+    def process_primitive(self, primitive, gltf, textures):
+        # 提取顶点位置
+        positions = self.get_accessor_data(primitive.attributes.POSITION, gltf)
+        logging.info(f"  Positions count: {len(positions)}")
+        if positions.size == 0:
+            logging.warning("  Primitive 缺少 POSITION 数据。跳过此 primitive。")
+            return
 
-                # 使用 mesh.texturecoords 获取纹理坐标
-                texcoords = mesh.texturecoords[0][:, :2] if mesh.texturecoords is not None and len(
-                    mesh.texturecoords) > 0 else np.zeros((len(vertices), 2))
-                indices = mesh.faces.flatten()
+        # 提取法线
+        normals = self.get_accessor_data(primitive.attributes.NORMAL,
+                                         gltf) if primitive.attributes.NORMAL is not None else np.zeros_like(positions)
+        logging.info(f"  Normals count: {len(normals)}")
 
-                # 转换为 NumPy 数组
-                vertices = np.array(vertices, dtype=np.float32)
-                normals = np.array(normals, dtype=np.float32)
-                texcoords = np.array(texcoords, dtype=np.float32)
-                indices = np.array(indices, dtype=np.uint32)
+        # 提取纹理坐标
+        texcoords = self.get_accessor_data(primitive.attributes.TEXCOORD_0,
+                                           gltf) if primitive.attributes.TEXCOORD_0 is not None else np.zeros(
+            (len(positions), 2), dtype=np.float32)
+        logging.info(f"  Texcoords count: {len(texcoords)}")
 
-                # 获取纹理路径
-                texture_path = None
-                if mesh.material and mesh.material.properties:
-                    # 通过属性字典查找 'diffusecolor|file' 或 'file'
-                    if 'diffusecolor|file' in prop_dict:
-                        texture_file = prop_dict['diffusecolor|file']
-                        # 查找提取的嵌入式纹理文件
-                        texture_path_candidate = os.path.abspath(
-                            os.path.join(self.directory, '..', 'textures', texture_file))
-                        if os.path.isfile(texture_path_candidate):
-                            texture_path = texture_path_candidate
-                            logging.info(f"  Assigned embedded texture to mesh: {texture_path}")
-                        else:
-                            logging.error(f"  纹理文件不存在: {texture_path_candidate}")
-                    elif 'file' in prop_dict:
-                        texture_file = prop_dict['file']
-                        texture_path_candidate = os.path.abspath(
-                            os.path.join(self.directory, '..', 'textures', texture_file))
-                        if os.path.isfile(texture_path_candidate):
-                            texture_path = texture_path_candidate
-                            logging.info(f"  Found diffuse texture (from 'file'): {texture_path}")
-                        else:
-                            logging.error(f"  纹理文件不存在: {texture_path_candidate}")
-                    else:
-                        logging.info("  没有找到 'DiffuseColor|file' 或 'file' 属性。")
-                else:
-                    logging.info("  No material properties found for this mesh.")
+        # 提取索引
+        indices = self.get_accessor_data(primitive.indices, gltf)
+        logging.info(f"  Indices count: {len(indices)}")
+        if indices.size == 0:
+            logging.warning("  Primitive 缺少索引数据。跳过此 primitive。")
+            return
 
-                if texture_path:
-                    # 纹理文件存在，使用它
-                    pass
-                else:
-                    logging.info("  No diffuse texture found for this mesh.")
+        # 确保顶点、法线和纹理坐标的长度一致
+        num_vertices = len(positions)
 
-                self.meshes.append(Mesh(vertices, normals, texcoords, indices, texture_path))
+        if len(normals) != num_vertices:
+            logging.warning(f"  法线数量 ({len(normals)}) 与顶点数量 ({num_vertices}) 不匹配。使用默认法线。")
+            normals = np.zeros_like(positions)
+
+        if len(texcoords) != num_vertices:
+            logging.warning(f"  纹理坐标数量 ({len(texcoords)}) 与顶点数量 ({num_vertices}) 不匹配。使用默认纹理坐标。")
+            texcoords = np.zeros((num_vertices, 2), dtype=np.float32)
+
+        # 提取纹理路径
+        texture_path = None
+        if primitive.material is not None:
+            material = gltf.materials[primitive.material]
+            if material.pbrMetallicRoughness and material.pbrMetallicRoughness.baseColorTexture:
+                texture_index = material.pbrMetallicRoughness.baseColorTexture.index
+                texture_path = textures.get(texture_index, None)
+                if texture_path and not os.path.isfile(texture_path):
+                    logging.warning(f"  纹理文件不存在: {texture_path}. 使用默认纹理。")
+                    texture_path = os.path.join(self.directory, 'textures', Mesh.DEFAULT_TEXTURE_FILENAME)
+        else:
+            logging.info("  Primitive 无材质。使用默认纹理。")
+            texture_path = os.path.join(self.directory, 'textures', Mesh.DEFAULT_TEXTURE_FILENAME)
+
+        # 创建 Mesh 实例
+        self.meshes.append(Mesh(positions, normals, texcoords, indices, texture_path, self.directory))
+
+    def get_accessor_data(self, accessor_index, gltf):
+        accessor = gltf.accessors[accessor_index]
+        buffer_view = gltf.bufferViews[accessor.bufferView]
+        buffer = gltf.buffers[buffer_view.buffer]
+
+        # 读取二进制数据
+        buffer_path = os.path.join(self.directory, buffer.uri.replace('\\', os.sep).replace('/', os.sep))
+        if not os.path.isfile(buffer_path):
+            logging.error(f"  缓冲区文件不存在: {buffer_path}")
+            return np.array([])
+
+        with open(buffer_path, 'rb') as f:
+            f.seek(buffer_view.byteOffset)
+            data = f.read(buffer_view.byteLength)
+
+        # 根据 accessor.componentType 和 accessor.type 解析数据，并考虑 byteStride
+        component_type = accessor.componentType
+        accessor_type = accessor.type
+        count = accessor.count
+
+        type_count = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT2': 4, 'MAT3': 9, 'MAT4': 16}
+        component_type_dtype = {
+            5120: np.int8,  # BYTE
+            5121: np.uint8,  # UNSIGNED_BYTE
+            5122: np.int16,  # SHORT
+            5123: np.uint16,  # UNSIGNED_SHORT
+            5125: np.uint32,  # UNSIGNED_INT
+            5126: np.float32,  # FLOAT
+        }
+
+        if accessor_type not in type_count or component_type not in component_type_dtype:
+            logging.warning(f"Unsupported accessor type: {accessor_type} or componentType: {component_type}")
+            return np.array([])
+
+        dtype = component_type_dtype[component_type]
+        num_components = type_count[accessor_type]
+
+        # Calculate expected element size
+        element_size = num_components * dtype().nbytes
+
+        # Handle byteStride
+        byte_stride = buffer_view.byteStride
+        logging.info(
+            f"  Accessor {accessor_index}: type={accessor_type}, componentType={component_type}, count={count}, byteStride={byte_stride}")
+
+        if accessor_type == 'SCALAR':
+            # 对于 SCALAR 类型，忽略 byteStride，假定数据是紧凑排列的
+            array = np.frombuffer(data, dtype=dtype, count=count)
+            logging.info(f"  Accessor {accessor_index}: SCALAR data read with shape ({count},)")
+        elif byte_stride is None:
+            # 紧凑排列
+            array = np.frombuffer(data, dtype=dtype)
+            try:
+                array = array.reshape((count, num_components))
+                logging.info(f"  Accessor {accessor_index}: Data reshaped to {array.shape}")
+            except ValueError as e:
+                logging.error(f"Reshape error for accessor {accessor_index}: {e}")
+                return np.array([])
+        else:
+            # Strided 数据
+            stride = byte_stride
+            array = np.empty((count, num_components), dtype=dtype)
+            for i in range(count):
+                start = i * stride
+                end = start + element_size
+                if end > len(data):
+                    logging.warning(f"Data overflow while reading accessor {accessor_index} at element {i}")
+                    break
+                element = np.frombuffer(data[start:end], dtype=dtype, count=num_components)
+                if len(element) != num_components:
+                    logging.warning(f"Incomplete data for accessor {accessor_index} at element {i}")
+                    break
+                array[i] = element
+            logging.info(f"  Accessor {accessor_index}: Strided data reshaped to {array.shape}")
+
+        return array
 
     def render(self, shader_program):
         for mesh in self.meshes:
             mesh.render(shader_program)
-

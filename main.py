@@ -6,24 +6,31 @@ from scene import Scene
 from controls import Controls
 from renderer import Renderer
 import time
+import logging
+from shader_compiler import init_simple_shader_program
+
+# 设置日志配置
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def main():
     # 初始化 GLFW 窗口
     if not glfw.init():
-        raise Exception("GLFW 初始化失败")
+        logging.error("GLFW 初始化失败")
+        return
 
     # 创建窗口
-    window = glfw.create_window(1600, 900, "Simple Triangle", None, None)
+    window = glfw.create_window(1600, 900, "3D Model Loader", None, None)
     if not window:
         glfw.terminate()
-        raise Exception("窗口创建失败")
+        logging.error("窗口创建失败")
+        return
 
     glfw.make_context_current(window)
 
     # 打印 OpenGL 信息
-    print(f"OpenGL Version: {glGetString(GL_VERSION).decode()}")
-    print(f"GLSL Version: {glGetString(GL_SHADING_LANGUAGE_VERSION).decode()}")
-    print(f"Renderer: {glGetString(GL_RENDERER).decode()}")
+    logging.info(f"OpenGL Version: {glGetString(GL_VERSION).decode()}")
+    logging.info(f"GLSL Version: {glGetString(GL_SHADING_LANGUAGE_VERSION).decode()}")
+    logging.info(f"Renderer: {glGetString(GL_RENDERER).decode()}")
 
     # 初始化相机
     camera = Camera()
@@ -31,10 +38,16 @@ def main():
     # 初始化场景
     scene = Scene(camera)
 
-    # 初始化渲染器
+    # 初始化着色器
+    shader_program = init_simple_shader_program()  # 你需要实现compile_shaders函数以编译和链接着色器
+
+    # 使用着色器程序
+    glUseProgram(shader_program)
+
+    # 初始化 Renderer
     renderer = Renderer(scene)
 
-    # 初始化控制
+    # 初始化 Controls
     controls = Controls(window, camera)
 
     # 设置初始时间
@@ -56,13 +69,13 @@ def main():
         # 更新场景
         scene.update()
 
-        # 渲染
+        # 使用 Renderer 进行渲染
         renderer.render()
 
         # 检查并打印 OpenGL 错误
         error = glGetError()
         if error != GL_NO_ERROR:
-            print(f"OpenGL Error: {error}")
+            logging.error(f"OpenGL Error: {error}")
 
         glfw.swap_buffers(window)
         glfw.poll_events()

@@ -35,7 +35,7 @@ class Renderer:
         view = self.scene.camera.get_view_matrix()
 
         # 设置投影矩阵
-        projection = glm.perspective(glm.radians(self.scene.camera.fov), 800 / 600, 0.1, 100.0)
+        projection = glm.perspective(glm.radians(self.scene.camera.fov), 1600 / 900, 0.1, 100.0)
 
         # 获取 uniform 位置
         model_loc = glGetUniformLocation(self.shader_program, "model")
@@ -54,4 +54,3 @@ class Renderer:
 
         # 渲染场景中的物体，传递着色器程序
         self.scene.render(self.shader_program)
-

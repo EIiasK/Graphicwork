@@ -29,16 +29,16 @@ class Controls:
     def handle_input(self, delta_time):
         # 根据按键状态移动相机
         if self.keys.get(glfw.KEY_W, False):
-            print("W pressed")
+            # print("W pressed")
             self.camera.process_keyboard('FORWARD', delta_time)
         if self.keys.get(glfw.KEY_S, False):
-            print("S pressed")
+            # print("S pressed")
             self.camera.process_keyboard('BACKWARD', delta_time)
         if self.keys.get(glfw.KEY_A, False):
-            print("A pressed")
+            # print("A pressed")
             self.camera.process_keyboard('LEFT', delta_time)
         if self.keys.get(glfw.KEY_D, False):
-            print("D pressed")
+            # print("D pressed")
             self.camera.process_keyboard('RIGHT', delta_time)
 
         # 获取鼠标移动
