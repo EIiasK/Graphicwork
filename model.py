@@ -191,9 +191,11 @@ class Model:
                 self.process_node(child, gltf, textures, global_transform)
 
     def process_primitive(self, primitive, gltf, textures, model_matrix):
+        logging.info(f"Model Matrix: {model_matrix}")
         # 提取顶点位置
         positions = self.get_accessor_data(primitive.attributes.POSITION, gltf)
         logging.info(f"  Positions count: {len(positions)}")
+        logging.info(f"Positions sample: {positions[:10]}")
         if positions.size == 0:
             logging.warning("  Primitive 缺少 POSITION 数据。跳过此 primitive。")
             return
@@ -201,44 +203,52 @@ class Model:
         # 提取法线
         normals = self.get_accessor_data(primitive.attributes.NORMAL,
                                          gltf) if primitive.attributes.NORMAL is not None else np.zeros_like(positions)
+        # 确保法线归一化
+        if len(normals) > 0:
+            normals = np.array([glm.normalize(glm.vec3(*n)) for n in normals], dtype=np.float32)
+        logging.info(f"Normals sample: {normals[:5]}")
         logging.info(f"  Normals count: {len(normals)}")
-
         # 提取纹理坐标
         texcoords = self.get_accessor_data(primitive.attributes.TEXCOORD_0,
                                            gltf) if primitive.attributes.TEXCOORD_0 is not None else np.zeros(
             (len(positions), 2), dtype=np.float32)
         logging.info(f"  Texcoords count: {len(texcoords)}")
         logging.info(f"Texcoords sample: {texcoords[:5]}")
+
         # 提取索引
         indices = self.get_accessor_data(primitive.indices, gltf)
         logging.info(f"  Indices count: {len(indices)}")
+        logging.info(f"Indices sample: {indices[:10]}")
         if indices.size == 0:
             logging.warning("  Primitive 缺少索引数据。跳过此 primitive。")
             return
 
-        # 确保顶点、法线和纹理坐标的长度一致
-        num_vertices = len(positions)
+        # 展开顶点属性，使长度与 indices 一致
+        expanded_positions = np.zeros((len(indices), 3), dtype=np.float32)
+        expanded_normals = np.zeros((len(indices), 3), dtype=np.float32)
+        expanded_texcoords = np.zeros((len(indices), 2), dtype=np.float32)
 
-        if len(normals) != num_vertices:
-            logging.warning(f"  法线数量 ({len(normals)}) 与顶点数量 ({num_vertices}) 不匹配。使用默认法线。")
-            normals = np.zeros_like(positions)
+        for i, idx in enumerate(indices):
+            # 检查索引是否超出范围
+            if idx >= len(positions) or idx >= len(texcoords):
+                logging.warning(f"Index {idx} out of bounds, skipping this index.")
+                continue
+            expanded_positions[i] = positions[idx]
+            expanded_normals[i] = normals[idx]
+            expanded_texcoords[i] = texcoords[idx]
 
-        if len(texcoords) != num_vertices:
-            logging.warning(f"  纹理坐标数量 ({len(texcoords)}) 与顶点数量 ({num_vertices}) 不匹配。使用默认纹理坐标。")
-            texcoords = np.zeros((num_vertices, 2), dtype=np.float32)
+        if np.max(indices) >= len(positions):
+            logging.error(f"Index exceeds vertex count: max={np.max(indices)}, vertex_count={len(positions)}")
+            return
 
-        # 检查 indices 和 texcoords 长度是否匹配
-        if len(indices) != len(texcoords):
-            expanded_texcoords = np.zeros((len(indices), 2), dtype=np.float32)
-            for i, idx in enumerate(indices):
-                if idx < len(texcoords):
-                    expanded_texcoords[i] = texcoords[idx]
-                else:
-                    logging.warning(f"Index {idx} out of bounds for texcoords, using default [0, 0]")
-                    expanded_texcoords[i] = [0.0, 0.0]  # 默认纹理坐标
-            texcoords = expanded_texcoords
+        # 用展开后的数组替代原始数据
+        positions = expanded_positions
+        normals = expanded_normals
+        texcoords = expanded_texcoords
 
-        logging.info(f"Model Matrix: {model_matrix}")
+        logging.info(f"Expanded positions count: {len(positions)}")
+        logging.info(f"Expanded normals count: {len(normals)}")
+        logging.info(f"Expanded texcoords count: {len(texcoords)}")
 
         # 提取纹理路径
         texture_path = None
