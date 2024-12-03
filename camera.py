@@ -1,8 +1,8 @@
 import glm
-
+from utils import *
 class Camera:
     def __init__(self, position=None, front=None, up=None):
-        self.position = position if position else glm.vec3(0.0, 0.0, 3.0)
+        self.position = position if position else glm.vec3(0.0, 0.0, 10.0)  # 将初始位置拉远
         self.front = front if front else glm.vec3(0.0, 0.0, -1.0)
         self.up = up if up else glm.vec3(0.0, 1.0, 0.0)
         self.right = glm.normalize(glm.cross(self.front, self.up))
@@ -10,7 +10,9 @@ class Camera:
         self.fov = 45.0
 
     def get_view_matrix(self):
-        return glm.lookAt(self.position, self.position + self.front, self.up)
+        view_matrix = glm.lookAt(self.position, self.position + self.front, self.up)
+        # print_matrix(view_matrix, "View Matrix")  # 调用打印函数
+        return view_matrix
 
     def process_keyboard(self, direction, delta_time):
         speed = 2.5 * delta_time

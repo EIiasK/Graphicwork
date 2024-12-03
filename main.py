@@ -22,6 +22,13 @@ def main():
     scene = Scene(camera)
     renderer = Renderer(scene)
     controls = Controls(window, camera)
+    glEnable(GL_DEPTH_TEST)  # 启用深度测试
+    glEnable(GL_CULL_FACE)  # 启用背面剔除
+    glCullFace(GL_BACK)  # 剔除背面
+    glFrontFace(GL_CCW)  # 设置逆时针为正面
+
+    # 加载模型
+    scene.load_objects()
 
     # 渲染主循环
     while not glfw.window_should_close(window):
