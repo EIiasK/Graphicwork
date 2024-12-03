@@ -10,21 +10,21 @@ def compile_shader(vertex_src, fragment_src):
     try:
         vertex_shader = compileShader(vertex_src, GL_VERTEX_SHADER)
     except RuntimeError as e:
-        print("Vertex shader compilation failed:")
+        print("顶点着色器编译失败:")
         print(e)
         raise
 
     try:
         fragment_shader = compileShader(fragment_src, GL_FRAGMENT_SHADER)
     except RuntimeError as e:
-        print("Fragment shader compilation failed:")
+        print("片段着色器编译失败:")
         print(e)
         raise
 
     try:
         shader_program = compileProgram(vertex_shader, fragment_shader)
     except RuntimeError as e:
-        print("Shader program linking failed:")
+        print("着色器程序链接失败:")
         print(e)
         raise
 

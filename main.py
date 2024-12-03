@@ -4,39 +4,17 @@ from camera import Camera
 from scene import Scene
 from controls import Controls
 from renderer import Renderer
-import ctypes
-
-# 定义回调函数类型，使用 WINFUNCTYPE 以匹配 WINAPI 调用约定
-DEBUG_CALLBACK_TYPE = ctypes.WINFUNCTYPE(
-    None,            # 返回类型
-    GLenum,          # source
-    GLenum,          # type
-    GLuint,          # id
-    GLenum,          # severity
-    GLsizei,         # length
-    ctypes.POINTER(GLchar),  # message
-    ctypes.c_void_p  # userParam
-)
-
-# 定义实际的回调函数
-def debug_callback(source, type, id, severity, length, message, userParam):
-    # 将 message 从字节转换为字符串
-    msg = ctypes.string_at(message, length).decode('utf-8')
-    print(f"GL DEBUG: {msg}")
-
-# 将 Python 函数转换为 C 函数指针
-debug_callback_c = DEBUG_CALLBACK_TYPE(debug_callback)
 
 def main():
     # 初始化GLFW窗口
     if not glfw.init():
         raise Exception("GLFW初始化失败")
 
-    # 请求调试上下文
+    # 请求调试上下文（可选）
     glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
     glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
     glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-    glfw.window_hint(glfw.OPENGL_DEBUG_CONTEXT, GL_TRUE)
+    # glfw.window_hint(glfw.OPENGL_DEBUG_CONTEXT, GL_TRUE)  # 可选，移除调试上下文请求
 
     window = glfw.create_window(1600, 900, "airbase 3D", None, None)
     if not window:
@@ -49,16 +27,6 @@ def main():
     print(f"OpenGL Version: {glGetString(GL_VERSION).decode()}")
     print(f"GLSL Version: {glGetString(GL_SHADING_LANGUAGE_VERSION).decode()}")
     print(f"Renderer: {glGetString(GL_RENDERER).decode()}")
-
-    # 启用调试输出
-    glEnable(GL_DEBUG_OUTPUT)
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS)  # 确保调试消息按顺序输出
-
-    # 设置调试回调
-    glDebugMessageCallback(debug_callback_c, None)
-
-    # 可选：过滤特定类型的调试消息
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, None, GL_TRUE)
 
     # 初始化渲染器、相机、场景和控制
     camera = Camera()
@@ -82,6 +50,11 @@ def main():
         scene.update()
         renderer.render()
 
+        # 检查并打印OpenGL错误
+        error = glGetError()
+        if error != GL_NO_ERROR:
+            print(f"OpenGL Error: {error}")
+
         glfw.swap_buffers(window)
         glfw.poll_events()
 
@@ -90,3 +63,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

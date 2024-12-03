@@ -18,15 +18,26 @@ class Renderer:
         view = self.scene.camera.get_view_matrix()
         projection = glm.perspective(glm.radians(self.scene.camera.fov), 1600 / 900, 0.1, 100.0)
 
-        # 打印矩阵以调试
-        print_matrix(view, "View Matrix:")
-        print_matrix(projection, "Projection Matrix:")
-
         # 将矩阵传递到着色器
         view_loc = glGetUniformLocation(self.shader_program, "view")
         projection_loc = glGetUniformLocation(self.shader_program, "projection")
         glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm.value_ptr(view))
         glUniformMatrix4fv(projection_loc, 1, GL_FALSE, glm.value_ptr(projection))
 
+        # 设置模型矩阵
+        model = glm.mat4(1.0)  # 使用单位矩阵或根据需要进行变换
+        model_loc = glGetUniformLocation(self.shader_program, "model")
+        glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm.value_ptr(model))
+
+        # 检查并打印OpenGL错误
+        error = glGetError()
+        if error != GL_NO_ERROR:
+            print(f"OpenGL Error before rendering objects: {error}")
+
         # 渲染场景中的物体
         self.scene.render()
+
+        # 检查并打印OpenGL错误
+        error = glGetError()
+        if error != GL_NO_ERROR:
+            print(f"OpenGL Error after rendering objects: {error}")

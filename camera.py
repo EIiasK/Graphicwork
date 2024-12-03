@@ -1,5 +1,6 @@
 import glm
 from utils import *
+
 class Camera:
     def __init__(self, position=None, front=None, up=None):
         self.position = position if position else glm.vec3(0.0, 0.0, 10.0)  # 将初始位置拉远
@@ -11,7 +12,6 @@ class Camera:
 
     def get_view_matrix(self):
         view_matrix = glm.lookAt(self.position, self.position + self.front, self.up)
-        # print_matrix(view_matrix, "View Matrix")  # 调用打印函数
         return view_matrix
 
     def process_keyboard(self, direction, delta_time):

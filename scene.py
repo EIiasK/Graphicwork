@@ -91,8 +91,8 @@ class Scene:
     def load_objects(self):
         vertices = np.array([
             -0.5, -0.5, 0.0,
-            0.5, -0.5, 0.0,
-            0.0, 0.5, 0.0
+             0.5, -0.5, 0.0,
+             0.0, 0.5, 0.0
         ], dtype=np.float32)
 
         indices = np.array([0, 1, 2], dtype=np.uint32)
@@ -107,3 +107,4 @@ class Scene:
         # 渲染所有物体
         for obj in self.objects:
             obj.render()
+
