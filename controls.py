@@ -53,4 +53,3 @@ class Controls:
         self.last_x, self.last_y = x_pos, y_pos
 
         self.camera.process_mouse_movement(x_offset, y_offset)
-

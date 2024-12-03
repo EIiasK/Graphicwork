@@ -5,7 +5,7 @@ from camera import Camera
 from scene import Scene
 from controls import Controls
 from renderer import Renderer
-import time  # 导入 time 模块以获取时间
+import time
 
 def main():
     # 初始化 GLFW 窗口

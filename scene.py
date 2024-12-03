@@ -1,21 +1,16 @@
 # scene.py
-from simple_triangle import SimpleTriangle
+from model import Model
+
 
 class Scene:
     def __init__(self, camera):
-        self.objects = []
         self.camera = camera
-        # 初始化简单的三角形对象
-        self.simple_triangle = SimpleTriangle()
-
-    def load_objects(self):
-        # 此处可以保留原有的加载对象代码，但为了简化，我们只渲染简单的三角形
-        pass
+        # 加载 FBX 模型
+        self.model = Model("D:/Programming/Project/Graphics/source/airport.fbx")  # 替换为你的模型路径
 
     def update(self):
         # 更新物体状态（如动画等）
         pass
 
     def render(self):
-        # 渲染简单的三角形
-        self.simple_triangle.render()
+        self.model.render()
