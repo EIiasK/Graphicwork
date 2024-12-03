@@ -1,3 +1,4 @@
+# scene.py
 import pyassimp
 from OpenGL.GL import *
 import numpy as np
@@ -19,25 +20,39 @@ class Mesh:
     def setup_mesh(self):
         glBindVertexArray(self.vao)
 
-        # 顶点缓冲区
+        # 顶点缓冲区包含位置、法线和纹理坐标，交错存储
+        interleaved_data = []
+        for i in range(len(self.vertices) // 3):
+            interleaved_data.extend(self.vertices[3*i:3*i+3])
+            if len(self.normals) > 0:
+                interleaved_data.extend(self.normals[3*i:3*i+3])
+            if len(self.texcoords) > 0:
+                interleaved_data.extend(self.texcoords[2*i:2*i+2])
+
+        interleaved_data = np.array(interleaved_data, dtype=np.float32)
+
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, interleaved_data.nbytes, interleaved_data, GL_STATIC_DRAW)
 
         # 索引缓冲区
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.ebo)
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.indices.nbytes, self.indices, GL_STATIC_DRAW)
 
-        # 顶点属性指针
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * 4, ctypes.c_void_p(0))  # 顶点位置
+        # 计算步幅
+        stride = (3 + 3 + 2) * 4  # 位置 + 法线 + 纹理坐标，每个浮点数4字节
+
+        # 位置属性
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
         glEnableVertexAttribArray(0)
 
+        # 法线属性
         if len(self.normals) > 0:
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * 4, ctypes.c_void_p(len(self.vertices) * 4))  # 法线
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(3 * 4))
             glEnableVertexAttribArray(1)
 
+        # 纹理坐标属性
         if len(self.texcoords) > 0:
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * 4,
-                                  ctypes.c_void_p((len(self.vertices) + len(self.normals)) * 4))  # 纹理坐标
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(6 * 4))
             glEnableVertexAttribArray(2)
 
         glBindVertexArray(0)
@@ -89,12 +104,6 @@ class Scene:
         pass
 
     def render(self):
-        glUseProgram(self.shader_program)  # 使用初始化的 shader program
-
-        # 设置 uniform 变量（如模型矩阵、光照等）
-        glUniformMatrix4fv(glGetUniformLocation(self.shader_program, "model"), 1, GL_FALSE,
-                           glm.value_ptr(glm.mat4(1.0)))
-
         # 渲染所有物体
         for obj in self.objects:
             obj.render()

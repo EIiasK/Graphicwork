@@ -7,14 +7,26 @@ def load_shader_code(file_path):
 
 
 def compile_shader(vertex_src, fragment_src):
-    # 编译顶点着色器
-    vertex_shader = compileShader(vertex_src, GL_VERTEX_SHADER)
+    try:
+        vertex_shader = compileShader(vertex_src, GL_VERTEX_SHADER)
+    except RuntimeError as e:
+        print("Vertex shader compilation failed:")
+        print(e)
+        raise
 
-    # 编译片段着色器
-    fragment_shader = compileShader(fragment_src, GL_FRAGMENT_SHADER)
+    try:
+        fragment_shader = compileShader(fragment_src, GL_FRAGMENT_SHADER)
+    except RuntimeError as e:
+        print("Fragment shader compilation failed:")
+        print(e)
+        raise
 
-    # 链接着色器程序
-    shader_program = compileProgram(vertex_shader, fragment_shader)
+    try:
+        shader_program = compileProgram(vertex_shader, fragment_shader)
+    except RuntimeError as e:
+        print("Shader program linking failed:")
+        print(e)
+        raise
 
     return shader_program
 
