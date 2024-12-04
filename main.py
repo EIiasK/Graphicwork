@@ -2,12 +2,12 @@
 import glfw
 from OpenGL.GL import *
 from camera import Camera
-from scene import Scene
+from scene import Scene  # 修改为新实现的 Scene
 from controls import Controls
-from renderer import Renderer
+from renderer import Renderer  # 修改为新实现的 Renderer
 import time
 import logging
-from shader_compiler import init_simple_shader_program
+from shader_compiler import init_shader_program
 
 # 设置日志配置
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -35,17 +35,17 @@ def main():
     # 初始化相机
     camera = Camera()
 
-    # 初始化场景
-    scene = Scene(camera)
+    # 初始化场景（新实现）
+    scene = Scene(camera, gltf_path="D:/Programming/Project/Graphics/model/scene.gltf")
 
     # 初始化着色器
-    shader_program = init_simple_shader_program()  # 你需要实现compile_shaders函数以编译和链接着色器
+    shader_program = init_shader_program()  # 着色器的编译和链接保持不变
 
     # 使用着色器程序
     glUseProgram(shader_program)
 
     # 初始化 Renderer
-    renderer = Renderer(scene)
+    renderer = Renderer(scene, shader_program)
 
     # 初始化 Controls
     controls = Controls(window, camera)
@@ -79,6 +79,7 @@ def main():
 
         glfw.swap_buffers(window)
         glfw.poll_events()
+        glClearColor(0.1, 0.1, 0.1, 1.0)  # 设置背景颜色（暗灰色）
 
     glfw.terminate()
 

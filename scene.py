@@ -1,23 +1,20 @@
-# scene.py
-from model import Model
-from OpenGL.GL import *
-import logging
-import os
-
+from camera import Camera
+from model import Model  # 引入 Model 类
 
 class Scene:
-    def __init__(self, camera):
+    def __init__(self, camera, gltf_path):
         self.camera = camera
-        # 加载glTF模型，假设glTF文件位于根目录下的model文件夹
-        gltf_path = os.path.join('model', 'scene.gltf')
-        if not os.path.isfile(gltf_path):
-            logging.error(f"glTF模型文件不存在: {gltf_path}")
-            raise FileNotFoundError(f"glTF模型文件不存在: {gltf_path}")
+        # 加载模型数据
         self.model = Model(gltf_path)
 
     def update(self):
-        # 更新物体状态（如动画等）
+        """更新场景逻辑"""
         pass
 
-    def render(self, shader_program):
-        self.model.render(shader_program)
+    @property
+    def meshes(self):
+        """提供模型网格数据供 Renderer 使用"""
+        return [
+            (mesh.vao, mesh.vertex_count, mesh.model_matrix, mesh.texture)
+            for mesh in self.model.meshes
+        ]

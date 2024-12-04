@@ -30,7 +30,7 @@ def compile_shader(vertex_src, fragment_src):
 
     return shader_program
 
-def init_simple_shader_program():
+def init_shader_program():
     # 读取简单的 GLSL 文件内容
     vertex_shader_code = load_shader_code("Shader/shader.vert")
     fragment_shader_code = load_shader_code("Shader/shader.frag")

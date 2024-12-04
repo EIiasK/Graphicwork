@@ -1,58 +1,55 @@
-# renderer.py
 from OpenGL.GL import *
 import glm
-from shader_compiler import init_simple_shader_program
-from model import Model
 import logging
-import numpy as np
 
 
 class Renderer:
-    def __init__(self, scene):
+    def __init__(self, scene, shader_program):
         self.scene = scene
-        self.shader_program = init_simple_shader_program()
-
-        # 使用着色器程序
-        glUseProgram(self.shader_program)
-
-        # 设置光源参数
-        glUniform3f(glGetUniformLocation(self.shader_program, "lightPos"), 1.2, 1.0, 2.0)
-        glUniform3f(glGetUniformLocation(self.shader_program, "lightColor"), 1.0, 1.0, 1.0)
-        glUniform3f(glGetUniformLocation(self.shader_program, "objectColor"), 1.0, 1.0, 1.0)
+        self.shader_program = shader_program
+        logging.info("Renderer 已初始化")
 
     def render(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glClearColor(0.1, 0.1, 0.1, 1.0)
-
+        """渲染当前场景"""
+        glEnable(GL_DEPTH_TEST)  # 启用深度测试
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # 清理缓冲区
         glUseProgram(self.shader_program)
-        glEnable(GL_DEPTH_TEST)
 
-        # 获取相机的视图矩阵
-        view = self.scene.camera.get_view_matrix()
+        # 获取视图矩阵和投影矩阵
+        view_matrix = self.scene.camera.get_view_matrix()
+        projection_matrix = glm.perspective(
+            glm.radians(self.scene.camera.fov),
+            1600 / 900,  # 假设窗口宽高比
+            0.1, 100.0
+        )
 
-        # 设置投影矩阵
-        projection = glm.perspective(glm.radians(self.scene.camera.fov), 1600 / 900, 0.1, 500.0)
-
-
-        # 获取 uniform 位置
         view_loc = glGetUniformLocation(self.shader_program, "view")
-        proj_loc = glGetUniformLocation(self.shader_program, "projection")
-        view_pos_loc = glGetUniformLocation(self.shader_program, "viewPos")
+        projection_loc = glGetUniformLocation(self.shader_program, "projection")
 
-        # 传递视图和投影矩阵到着色器
-        glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm.value_ptr(view))
-        glUniformMatrix4fv(proj_loc, 1, GL_FALSE, glm.value_ptr(projection))
+        if view_loc != -1:
+            glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm.value_ptr(view_matrix))
+        if projection_loc != -1:
+            glUniformMatrix4fv(projection_loc, 1, GL_FALSE, glm.value_ptr(projection_matrix))
 
-        # 传递相机位置到着色器
-        glUniform3f(view_pos_loc, self.scene.camera.position.x, self.scene.camera.position.y,
-                    self.scene.camera.position.z)
-
-
-        # 遍历所有 meshes 并渲染
-        for mesh in self.scene.model.meshes:
-
-            # 传递模型矩阵到着色器
+        for vao, count, transform, texture_id in self.scene.meshes:
+            # 设置模型矩阵
             model_loc = glGetUniformLocation(self.shader_program, "model")
-            glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm.value_ptr(mesh.model_matrix))
-            # 渲染网格
-            mesh.render(self.shader_program)
+            if model_loc != -1:
+                glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm.value_ptr(transform))
+
+            # 绑定纹理（如果有）
+            if texture_id is not None:
+                texture_loc = glGetUniformLocation(self.shader_program, "texture1")
+                glActiveTexture(GL_TEXTURE0)
+                glBindTexture(GL_TEXTURE_2D, texture_id)
+                if texture_loc != -1:
+                    glUniform1i(texture_loc, 0)
+
+            # 绘制网格
+            glBindVertexArray(vao)
+            glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, None)
+
+        glBindVertexArray(0)
+        glUseProgram(0)
+        # logging.info("场景渲染完成")
+
