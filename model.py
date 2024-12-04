@@ -50,7 +50,7 @@ class Mesh:
         if not os.path.isfile(path):
             logging.warning(f"纹理文件缺失: {path}")
             return None
-        image = Image.open(path).transpose(Image.FLIP_TOP_BOTTOM)
+        image = Image.open(path)
         img_data = image.convert("RGBA").tobytes()
         width, height = image.size
         texture = glGenTextures(1)
