@@ -23,13 +23,23 @@ class Renderer:
             0.1, 100.0
         )
 
+        # 设置 Uniforms
         view_loc = glGetUniformLocation(self.shader_program, "view")
         projection_loc = glGetUniformLocation(self.shader_program, "projection")
+        light_pos_loc = glGetUniformLocation(self.shader_program, "lightPos")
+        light_color_loc = glGetUniformLocation(self.shader_program, "lightColor")
+        view_pos_loc = glGetUniformLocation(self.shader_program, "viewPos")
 
         if view_loc != -1:
             glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm.value_ptr(view_matrix))
         if projection_loc != -1:
             glUniformMatrix4fv(projection_loc, 1, GL_FALSE, glm.value_ptr(projection_matrix))
+        if light_pos_loc != -1:
+            glUniform3f(light_pos_loc, 0.0, 10.0, 10.0)  # 设置光源位置
+        if light_color_loc != -1:
+            glUniform3f(light_color_loc, 1.0, 1.0, 1.0)  # 设置光源颜色
+        if view_pos_loc != -1:
+            glUniform3f(view_pos_loc, *self.scene.camera.position)
 
         for vao, count, transform, texture_id in self.scene.meshes:
             # 设置模型矩阵
