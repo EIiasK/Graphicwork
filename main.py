@@ -72,7 +72,7 @@ def main():
         # 使用 Renderer 进行渲染
         renderer.render()
 
-        # 检查并打印 OpenGL 错误wwdwd
+        # 检查并打印 OpenGL 错误
         error = glGetError()
         if error != GL_NO_ERROR:
             logging.error(f"OpenGL Error: {error}")
