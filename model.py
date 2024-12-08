@@ -1,3 +1,4 @@
+# model.py
 from pygltflib import GLTF2
 from OpenGL.GL import *
 import numpy as np

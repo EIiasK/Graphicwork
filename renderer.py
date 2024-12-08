@@ -1,3 +1,4 @@
+# renderer.py
 from OpenGL.GL import *
 import glm
 import logging

@@ -1,4 +1,4 @@
-from camera import Camera
+# scene.py
 from model import Model  # 引入 Model 类
 
 class Scene:

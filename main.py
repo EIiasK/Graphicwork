@@ -2,10 +2,9 @@
 import glfw
 from OpenGL.GL import *
 from camera import Camera
-from scene import Scene  # 修改为新实现的 Scene
+from scene import Scene
 from controls import Controls
-from renderer import Renderer  # 修改为新实现的 Renderer
-import time
+from renderer import Renderer
 import logging
 from shader_compiler import init_shader_program
 
@@ -35,7 +34,7 @@ def main():
     # 初始化相机
     camera = Camera()
 
-    # 初始化场景（新实现）
+    # 初始化场景
     scene = Scene(camera, gltf_path="D:/Programming/Project/Graphics/model/scene.gltf")
 
     # 初始化着色器
